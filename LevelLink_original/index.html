@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LevelLink 설계 문서</title>
+<style>
+:root{
+  --bg:#f7f7f5; --panel:#ffffff; --text:#1f2328; --muted:#5f6670; --line:#e3e3df;
+  --accent:#3b5bdb; --accent-soft:#eef2ff; --code-bg:#f1f1ee; --pre-bg:#1e2230; --pre-text:#e6e8ef;
+  --th-bg:#f3f4f1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171c; --panel:#1c1f26; --text:#e6e8ec; --muted:#9aa1ad; --line:#2d313a;
+    --accent:#8ea4ff; --accent-soft:#232a45; --code-bg:#262a33; --pre-bg:#11131a; --pre-text:#dfe3ec;
+    --th-bg:#222630;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171c; --panel:#1c1f26; --text:#e6e8ec; --muted:#9aa1ad; --line:#2d313a;
+  --accent:#8ea4ff; --accent-soft:#232a45; --code-bg:#262a33; --pre-bg:#11131a; --pre-text:#dfe3ec;
+  --th-bg:#222630;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:20px}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15.5px;line-height:1.75;word-break:keep-all;overflow-wrap:break-word}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+aside{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);
+  background:var(--panel);padding:24px 14px 40px}
+aside .brand{font-weight:700;font-size:17px;padding:0 10px 4px}
+aside .sub{color:var(--muted);font-size:12.5px;padding:0 10px 16px;border-bottom:1px solid var(--line);margin-bottom:12px}
+aside nav a{display:flex;gap:8px;text-decoration:none;color:var(--muted);border-radius:6px;padding:5px 10px;font-size:14px;line-height:1.45}
+aside nav a .num{flex:none;font-variant-numeric:tabular-nums;color:inherit;opacity:.75;min-width:2.2em}
+aside nav a code{font-size:.85em;padding:.05em .3em}
+aside nav a.h2{color:var(--text);font-weight:600;margin-top:6px}
+aside nav a.h3{padding-left:22px;font-size:13px}
+aside nav a:hover{background:var(--accent-soft);color:var(--accent)}
+aside nav a.active{background:var(--accent-soft);color:var(--accent)}
+.theme-btn{margin:0 10px 12px;font:inherit;font-size:12.5px;background:transparent;color:var(--muted);
+  border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+main{padding:48px 56px 120px;max-width:1100px}
+header h1{font-size:30px;line-height:1.3;margin:0 0 18px;letter-spacing:-.01em}
+header p{color:var(--muted);margin:0 0 8px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:28px 32px;margin:28px 0}
+h2{font-size:22px;margin:0 0 18px;display:flex;align-items:center;gap:12px;letter-spacing:-.01em}
+h2 .num{display:inline-grid;place-items:center;min-width:32px;height:32px;padding:0 8px;border-radius:8px;
+  background:var(--accent);color:#fff;font-size:15px}
+h3{font-size:17px;margin:30px 0 10px;display:flex;gap:10px;align-items:baseline}
+h3 .num{color:var(--accent);font-variant-numeric:tabular-nums;font-size:15px}
+p{margin:10px 0}
+strong{font-weight:700}
+code{font-family:"D2Coding","Nanum Gothic Coding",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.88em;background:var(--code-bg);padding:.12em .38em;border-radius:4px}
+ul,ol.points{padding-left:1.4em;margin:10px 0}
+li{margin:4px 0}
+.diagram{margin:14px 0;border-radius:10px;background:var(--pre-bg);overflow-x:auto}
+.diagram pre{margin:0;padding:18px 20px;color:var(--pre-text);
+  font-family:"D2Coding","Nanum Gothic Coding","Sarasa Mono K",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:13.5px;line-height:1.55;white-space:pre}
+.table-wrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--line)}
+th{background:var(--th-bg);font-weight:600;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--accent-soft)}
+td code{white-space:nowrap}
+.toc-grid{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.toc-grid a{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+  text-decoration:none;color:var(--text)}
+.toc-grid a:hover{border-color:var(--accent);color:var(--accent)}
+.toc-grid .num{color:var(--accent);font-weight:700;min-width:1.4em}
+.menu-btn{display:none}
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  aside{position:fixed;z-index:20;left:0;top:0;width:280px;transform:translateX(-100%);transition:transform .2s}
+  body.nav-open aside{box-shadow:0 0 30px rgba(0,0,0,.25)}
+  td{min-width:10em}
+  body.nav-open aside{transform:none}
+  .menu-btn{display:block;position:fixed;z-index:30;right:16px;bottom:16px;border:none;border-radius:999px;
+    background:var(--accent);color:#fff;font:inherit;font-weight:600;padding:10px 18px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  main{padding:28px 16px 100px}
+  section{padding:20px 16px;border-radius:10px}
+  header h1{font-size:24px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand">LevelLink</div>
+    <div class="sub">Unity 클라이언트 설계 문서</div>
+    <button class="theme-btn" id="themeBtn" type="button">테마 전환</button>
+    <nav id="nav">
+<a class="h2" href="#s-1"><span class="num">1</span><span class="lbl">시스템 개요</span></a>
+<a class="h3" href="#s-1-1"><span class="num">1-1</span><span class="lbl">의도</span></a>
+<a class="h3" href="#s-1-2"><span class="num">1-2</span><span class="lbl">핵심 개념</span></a>
+<a class="h3" href="#s-1-3"><span class="num">1-3</span><span class="lbl">칸의 상태</span></a>
+<a class="h3" href="#s-1-4"><span class="num">1-4</span><span class="lbl">카드의 <code>level_link_lv</code></span></a>
+<a class="h2" href="#s-2"><span class="num">2</span><span class="lbl">사용자 흐름</span></a>
+<a class="h2" href="#s-3"><span class="num">3</span><span class="lbl">전체 구조</span></a>
+<a class="h3" href="#s-3-1"><span class="num">3-1</span><span class="lbl">계층</span></a>
+<a class="h3" href="#s-3-2"><span class="num">3-2</span><span class="lbl">폴더</span></a>
+<a class="h2" href="#s-4"><span class="num">4</span><span class="lbl">UI 프레임워크 (기반 클래스)</span></a>
+<a class="h3" href="#s-4-1"><span class="num">4-1</span><span class="lbl"><code>BaseUILayout&lt;TSetting&gt;</code> : 하위 영역</span></a>
+<a class="h3" href="#s-4-2"><span class="num">4-2</span><span class="lbl"><code>CPopupUI&lt;TSetting, TResult&gt;</code> : 결과를 돌려주는 팝업</span></a>
+<a class="h3" href="#s-4-3"><span class="num">4-3</span><span class="lbl"><code>PagePopup</code> : 전체 화면 페이지</span></a>
+<a class="h2" href="#s-5"><span class="num">5</span><span class="lbl">화면 구성</span></a>
+<a class="h3" href="#s-5-1"><span class="num">5-1</span><span class="lbl">메인 페이지 계층</span></a>
+<a class="h3" href="#s-5-2"><span class="num">5-2</span><span class="lbl">팝업</span></a>
+<a class="h2" href="#s-6"><span class="num">6</span><span class="lbl">데이터 모델</span></a>
+<a class="h3" href="#s-6-1"><span class="num">6-1</span><span class="lbl">테이블 (<code>CLevelLinkDataManager</code>)</span></a>
+<a class="h3" href="#s-6-2"><span class="num">6-2</span><span class="lbl">서버 (<code>LevelLinkManager</code>)</span></a>
+<a class="h3" href="#s-6-3"><span class="num">6-3</span><span class="lbl">덱 슬롯 표현</span></a>
+<a class="h2" href="#s-7"><span class="num">7</span><span class="lbl">서버 API</span></a>
+<a class="h2" href="#s-8"><span class="num">8</span><span class="lbl">이벤트와 데이터 갱신 흐름</span></a>
+<a class="h3" href="#s-8-1"><span class="num">8-1</span><span class="lbl">메시지 (<code>MessageBroker</code>)</span></a>
+<a class="h3" href="#s-8-2"><span class="num">8-2</span><span class="lbl">한 번의 갱신이 도는 순서 (예: 덱 저장)</span></a>
+<a class="h2" href="#s-9"><span class="num">9</span><span class="lbl">핵심 로직</span></a>
+<a class="h3" href="#s-9-1"><span class="num">9-1</span><span class="lbl">LevelLink 레벨</span></a>
+<a class="h3" href="#s-9-2"><span class="num">9-2</span><span class="lbl">카드 후보 규칙</span></a>
+<a class="h3" href="#s-9-3"><span class="num">9-3</span><span class="lbl">자동 배치 (<code>GetLevelLinkCardDeckAutoList</code>)</span></a>
+<a class="h3" href="#s-9-4"><span class="num">9-4</span><span class="lbl">정렬과 필터</span></a>
+<a class="h3" href="#s-9-5"><span class="num">9-5</span><span class="lbl">쿨타임 타이머</span></a>
+<a class="h3" href="#s-9-6"><span class="num">9-6</span><span class="lbl">쿨타임 단축 수단</span></a>
+<a class="h3" href="#s-9-7"><span class="num">9-7</span><span class="lbl">보석 사용 흐름 (<code>OpenPopupUseCash</code>)</span></a>
+<a class="h2" href="#s-10"><span class="num">10</span><span class="lbl">설계 패턴 분석</span></a>
+<a class="h3" href="#s-10-1"><span class="num">10-1</span><span class="lbl">구조 : MVP(Passive View)에 가까운 혼합형</span></a>
+<a class="h3" href="#s-10-2"><span class="num">10-2</span><span class="lbl">함께 쓰인 패턴</span></a>
+<a class="h3" href="#s-10-3"><span class="num">10-3</span><span class="lbl">장점</span></a>
+<a class="h2" href="#s-11"><span class="num">11</span><span class="lbl">파일 목록</span></a>
+    </nav>
+  </aside>
+  <main>
+    <header><h1>LevelLink 설계 문서 (원본 코드 분석)</h1></header>
+<p>이 문서는 <code>LevelLink</code> 폴더의 클라이언트 코드(51개 파일)가 <strong>어떤 시스템이고, 어떻게 나뉘어 있고, 데이터와 이벤트가 어떻게 흐르는지</strong>를 정리합니다.<br>코드 한 줄 한 줄의 설명은 각 파일의 주석에 있고, 이 문서는 그 위의 "지도" 역할을 합니다.</p>
+<section id="toc" class="toc-block"><h2>목차</h2>
+<ol class="toc-grid"><li><a href="#s-1"><span class="num">1</span>시스템 개요</a></li><li><a href="#s-2"><span class="num">2</span>사용자 흐름</a></li><li><a href="#s-3"><span class="num">3</span>전체 구조</a></li><li><a href="#s-4"><span class="num">4</span>UI 프레임워크 (기반 클래스)</a></li><li><a href="#s-5"><span class="num">5</span>화면 구성</a></li><li><a href="#s-6"><span class="num">6</span>데이터 모델</a></li><li><a href="#s-7"><span class="num">7</span>서버 API</a></li><li><a href="#s-8"><span class="num">8</span>이벤트와 데이터 갱신 흐름</a></li><li><a href="#s-9"><span class="num">9</span>핵심 로직</a></li><li><a href="#s-10"><span class="num">10</span>설계 패턴 분석</a></li><li><a href="#s-11"><span class="num">11</span>파일 목록</a></li></ol>
+</section>
+<section id="s-1"><h2><span class="num">1</span>시스템 개요</h2>
+<h3 id="s-1-1"><span class="num">1-1</span>의도</h3>
+<p><strong>LevelLink는 이미 성장한 카드를 활용해 새로운 카드의 육성을 쉽게 해 주는 도움 시스템입니다.</strong><br>이미 키운 카드들로 덱을 꾸리면 그 덱의 레벨이 정해지고, 새로 얻은 카드를 등록하면 그 레벨을 그대로 빌려 씁니다.</p>
+<h3 id="s-1-2"><span class="num">1-2</span>핵심 개념</h3>
+<div class="table-wrap"><table><thead><tr><th>개념</th><th>설명</th><th>코드</th></tr></thead><tbody><tr><td><strong>LevelLink (칸)</strong></td><td>여러 개가 있으며 순서대로 해금한다. 칸마다 덱 구성(슬롯 수, 멤버 조건)과 쿨타임이 테이블로 정해져 있다</td><td>테이블 <code>LevelLinkList</code>, 서버 <code>LevelLinkList</code></td></tr><tr><td><strong>덱</strong></td><td>칸마다 최대 7슬롯. 슬롯은 "특정 멤버 전용" 또는 "그룹 전체(아무 멤버)" 조건을 가진다. <strong>이미 성장한 카드</strong>를 넣는다</td><td>테이블 <code>LevelLinkGroupList</code>, 서버 <code>card_1 ~ card_7</code></td></tr><tr><td><strong>LevelLink 레벨</strong></td><td>덱에 넣은 카드 중 <strong>가장 낮은 카드 레벨</strong>. 모든 슬롯을 채워야 저장할 수 있다</td><td><code>GetLevelLinkSlotLV()</code>, 서버 <code>lv</code></td></tr><tr><td><strong>중앙 슬롯 (등록 카드)</strong></td><td><strong>새 카드</strong> 1장을 등록하면 카드 레벨이 LevelLink 레벨로 적용된다. 원래 레벨이 더 높으면 원래 레벨을 유지한다</td><td>서버 <code>slot</code>, 카드 <code>level_link_lv</code></td></tr><tr><td><strong>쿨타임</strong></td><td>등록 카드를 해제하면 그 칸에 쿨타임이 걸린다. 광고 / 보석 / 단축 티켓으로 줄일 수 있다</td><td>서버 <code>remain_time</code>, 테이블 <code>level_link_cooldown</code></td></tr><tr><td><strong>해금</strong></td><td>잠긴 칸은 미션 달성 + 골드 + 재료로 연다. 재료가 부족하면 보석으로 살 수 있다</td><td><code>PopupLevelLinkUnlock</code></td></tr></tbody></table></div>
+<h3 id="s-1-3"><span class="num">1-3</span>칸의 상태</h3>
+<p><code>LevelLinkManager.GetStateLevelLink()</code>가 서버 데이터로 계산합니다. 판정 순서가 곧 우선순위입니다.</p>
+<div class="diagram"><pre>LOCK      (state == 0)        잠김 → 해금 팝업
+COOLTIME  (remain_time &gt; 0)   쿨타임 중 → 단축 팝업
+SETTING   (slot &gt; 0)          카드 등록됨 → 해제 팝업
+EMPTY     (그 외)              비어 있음 → 카드 선택 팝업</pre></div>
+<h3 id="s-1-4"><span class="num">1-4</span>카드의 <code>level_link_lv</code></h3>
+<div class="table-wrap"><table><thead><tr><th>값</th><th>의미</th></tr></thead><tbody><tr><td><code>0</code></td><td>LevelLink가 적용되지 않은 카드. 덱 후보와 등록 후보가 될 수 있다</td></tr><tr><td>양수</td><td>중앙 슬롯에 등록되어 LevelLink 레벨이 적용 중인 카드</td></tr><tr><td><code>-1</code></td><td>등록되었지만 원래 카드 레벨이 더 높아 원래 레벨을 쓰는 카드</td></tr></tbody></table></div>
+<p>값이 0인 카드만 덱 후보와 등록 후보가 됩니다.</p>
+</section>
+<section id="s-2"><h2><span class="num">2</span>사용자 흐름</h2>
+<div class="diagram"><pre>로비 LevelLink 버튼
+  └─ LevelLinkManager.ShowLevelLinkPage()
+       카드 정보 API → LevelLink 정보 API(level_link/top) → PageLevelLink 생성
+            │
+            ├─ 좌우 화살표 / 하단 슬롯 목록 : 볼 칸 선택 (CurrentPageGDID)
+            │
+            ├─ [LOCK] 잠금 덮개 클릭 (이전 칸이 열려 있어야 함)
+            │     └─ 해금 팝업 : 미션 → 골드 → 재료 검사
+            │           ├─ 재료 부족 → 재료 구매 팝업 → 보석 사용 확인 → slot_buy
+            │           └─ 조건 충족 → slot_add → 해금 연출
+            │
+            ├─ 덱 영역 클릭 → 덱 편집 팝업 (정렬 / 필터 / 자동 배치)
+            │     └─ 저장 (레벨이 바뀌면 확인 팝업) → deck_save
+            ├─ 자동 배치 버튼 → 확인 → 자동 덱 계산 → 바뀌었으면 deck_save
+            ├─ 초기화 버튼 → 확인 → reset_all
+            │
+            └─ 중앙 카드 클릭
+                  ├─ 덱 미완성(lv == 0)  → 안내 토스트
+                  ├─ [SETTING]  → 등록 해제 확인 (쿨타임 안내) → slot_unset_card
+                  ├─ [COOLTIME] → 광고 목록 갱신 → 단축 팝업 (광고 / 보석 / 티켓) → reduce_time
+                  └─ [EMPTY]    → 카드 선택 팝업 → 등록 확인 (레벨 변화 미리보기) → slot_set</pre></div>
+</section>
+<section id="s-3"><h2><span class="num">3</span>전체 구조</h2>
+<h3 id="s-3-1"><span class="num">3-1</span>계층</h3>
+<div class="diagram"><pre>┌──────────────────────────── UI ────────────────────────────┐
+│ PageLevelLink (PagePopup)            ← 화면의 루트, 팝업 열기 │
+│   ├─ 하위 레이아웃 (BaseUILayout&lt;Setting&gt;) × 여러 단계        │
+│   └─ 팝업 (CPopupUI&lt;Setting, Result&gt;) × 8종 + 하위 레이아웃   │
+└───────────────▲──────────────────────────┬─────────────────┘
+   MessageBroker│(갱신 알림)                │ 호출 (Instance)
+┌───────────────┴──────────────────────────▼─────────────────┐
+│ LevelLinkManager (Singleton)                                │
+│   서버 상태 보관 · 규칙 계산 · 서버 요청 래핑 · 필터 상태     │
+└──────┬──────────────────────┬──────────────────────────────┘
+       │ 조회                  │ 요청
+┌──────▼──────────────┐ ┌─────▼──────────────────┐ ┌──────────────────┐
+│ CLevelLinkDataManager│ │ LevelLinkService        │ │ GameLogService    │
+│ 테이블 데이터         │ │ REST API + 응답 반영(Do) │─▶│ (LevelLink 로그)  │
+└─────────────────────┘ └─────────────────────────┘ └──────────────────┘</pre></div>
+<div class="table-wrap"><table><thead><tr><th>계층</th><th>클래스</th><th>책임</th></tr></thead><tbody><tr><td>테이블</td><td><code>CLevelLinkDataManager</code></td><td>칸 / 덱 구성 / 해금 재료 테이블을 Dictionary로 보관하고 조회</td></tr><tr><td>서버 상태 + 규칙</td><td><code>LevelLinkManager</code></td><td>칸별 서버 데이터, 미션 진행도, 현재 칸, 카드 후보 계산, 자동 배치, 필터, 쿨타임 단축 수단, 보석 사용 흐름</td></tr><tr><td>통신</td><td><code>LevelLinkService</code></td><td><code>level_link/*</code> API 호출. 응답을 <code>Do()</code>에서 매니저와 인벤토리에 반영</td></tr><tr><td>로그</td><td><code>GameLogService</code> (partial)</td><td>API 응답마다 행동 로그 전송</td></tr><tr><td>정렬</td><td><code>ICardSortStrategy</code>, <code>LevelLinkDeckSort</code></td><td>덱 편집 카드 정렬 (Strategy)</td></tr><tr><td>UI 기반</td><td><code>BaseUILayout</code>, <code>CPopupUI</code>, <code>PagePopup</code></td><td>화면 수명주기, 팝업 결과 전달</td></tr><tr><td>UI</td><td><code>PageLevelLink</code>, <code>Popup*</code>, <code>Obj*</code></td><td>화면 표시와 사용자 입력</td></tr></tbody></table></div>
+<h3 id="s-3-2"><span class="num">3-2</span>폴더</h3>
+<div class="diagram"><pre>LevelLink_original/
+├─ Common/
+│  ├─ CLevelLinkDataManager.cs            테이블 데이터
+│  └─ GameLog/GameLogService.LevelLink.cs 로그
+├─ Network/Service/LevelLinkService.cs    서버 API
+└─ Process/
+   ├─ Common/
+   │  ├─ SortFilter/CardSortStrategy.cs   정렬 전략
+   │  └─ UI/BaseUILayout.cs, CPopupUI.cs  UI 기반 클래스
+   └─ LevelLink/
+      ├─ LevelLinkManager.cs              핵심 매니저
+      ├─ LevelLinkDeckSort.cs             정렬 목록
+      └─ UI/
+         ├─ Obj*.cs                       공용 카드 / 슬롯 / 타이머 UI
+         ├─ page/                         메인 페이지와 하위 영역
+         └─ popup/                        팝업 8종</pre></div>
+</section>
+<section id="s-4"><h2><span class="num">4</span>UI 프레임워크 (기반 클래스)</h2>
+<p>LevelLink의 모든 화면은 아래 세 기반 클래스 위에 만들어져 있습니다.</p>
+<h3 id="s-4-1"><span class="num">4-1</span><code>BaseUILayout&lt;TSetting&gt;</code> : 하위 영역</h3>
+<div class="diagram"><pre>InitUI()                     1회 : 버튼 바인딩, 자식 InitUI
+SetData(new Setting{...})    부모가 값 + 콜백(Action)을 넣는다
+SetUI()                      setting 값으로 화면을 그린다 (자식에게 Setting을 나눠 주고 자식 SetUI)
+UpdateData / UpdateUI        갱신이 필요할 때</pre></div>
+<ul><li><code>Setting</code>은 화면 값과 <strong>부모에게 돌려보낼 콜백</strong>을 함께 담습니다. 자식은 부모를 직접 참조하지 않고 <code>setting.OnClickXXX()</code>를 호출합니다.</li><li>기본 메서드는 빈 virtual이고, 부모가 필요한 순서로 호출해 갱신 시점을 직접 정합니다.</li></ul>
+<h3 id="s-4-2"><span class="num">4-2</span><code>CPopupUI&lt;TSetting, TResult&gt;</code> : 결과를 돌려주는 팝업</h3>
+<div class="diagram"><pre>OpenPopupXXX() → 생성(Awake: subject, result 기본값, Flags) → SetData(Setting)
+호출측 : popup.ShowAsObservable().Subscribe(res =&gt; ...)   ← 구독해야 열린다
+팝업   : 확인 버튼에서 result를 채우고 Close()
+닫힘   : OnNext(result) 1회 → OnCompleted</pre></div>
+<ul><li>팝업 하나가 "입력 → 결과 1개"인 함수처럼 동작해서, 호출측이 Rx로 다음 단계를 이어 붙일 수 있습니다.</li></ul>
+<h3 id="s-4-3"><span class="num">4-3</span><code>PagePopup</code> : 전체 화면 페이지</h3>
+<ul><li>팝업 연결 리스트에 들어가지 않고, 결과 스트림이 없습니다. <code>OnClosePopup()</code>으로 파괴합니다.</li><li>백키 스택과 페이지 스택에 등록되고, <code>OnStart</code> / <code>OnBackEventProcess</code>로 수명주기를 받습니다.</li></ul>
+</section>
+<section id="s-5"><h2><span class="num">5</span>화면 구성</h2>
+<h3 id="s-5-1"><span class="num">5-1</span>메인 페이지 계층</h3>
+<div class="diagram"><pre>PageLevelLink (PagePopup)                    루트 : Setting 생성, 팝업 열기, 메시지 구독
+├─ TopUI     PageLevelLink_Top               뒤로가기 / 도움말
+├─ MidUI     PageLevelLink_Mid               현재 칸 상세 (Setting 중계)
+│  ├─ TopUI     PageLevelLink_Mid_TopUI      중앙 카드 + 쿨타임 + 레벨업 연출
+│  │  ├─ CardUI     ObjLevelLinkCard
+│  │  └─ CoolTimeUI ObjLevelLinkSlot_Timer
+│  ├─ MidMidUI  PageLevelLink_Mid_MidUI      LevelLink 레벨, 초기화 / 자동 배치 버튼
+│  └─ BottomUI  PageLevelLink_Mid_BottomUI   덱 카드 (최대 7칸, 2줄)
+│     └─ ObjLevelLinkSelectCardList × 2 → ObjLevelLinkCard → ObjLevelLinkCardMemberName
+├─ BottomUI  PageLevelLink_Bottom            전체 칸 목록 (가로 재사용 스크롤)
+│  └─ ObjLevelLinkSlot → ObjLevelLinkSlot_Timer
+├─ LockUI    PageLevelLink_Lock              잠금 덮개 + 해금 연출
+└─ BtnPrev / BtnNext                         칸 이동</pre></div>
+<h3 id="s-5-2"><span class="num">5-2</span>팝업</h3>
+<div class="table-wrap"><table><thead><tr><th>팝업</th><th>여는 곳 (조건)</th><th>Setting</th><th>Result</th><th>결과 후 처리</th></tr></thead><tbody><tr><td><code>PopupLevelLinkUnlock</code></td><td>잠금 덮개 클릭 (이전 칸 해금됨)</td><td>칸 테이블 (미션 / 골드 / 재료)</td><td><code>IsSuccess</code></td><td><code>RequestSlotAdd()</code></td></tr><tr><td><code>PopupLevelLinkBuy</code></td><td>해금 팝업에서 재료 부족</td><td>부족 재료 목록, 개당 보석 가격</td><td><code>IsSuccess</code>, <code>TotalCost</code></td><td><code>OpenPopupUseCash</code> → <code>RequestItemBuy()</code></td></tr><tr><td><code>PopupLevelLinkDeckManage</code></td><td>덱 영역 클릭</td><td>기존 레벨, 슬롯 구성, 현재 배치</td><td><code>IsSuccess</code>, <code>SlotList</code></td><td><code>RequestLevelLinkDeckSave()</code></td></tr><tr><td><code>PopupLevelLinkDecksave</code></td><td>덱 편집 저장 시 레벨이 바뀔 때</td><td>기존 / 변경 후 레벨</td><td><code>IsSuccess</code></td><td>덱 편집 팝업이 성공으로 닫힘</td></tr><tr><td><code>PopupLevelLinkSelectcard</code></td><td>중앙 카드 클릭 (EMPTY, lv &gt; 0)</td><td>등록 후보 카드, 현재 카드, 레벨</td><td><code>IsSuccess</code>, <code>SelectCardID</code></td><td><code>RequestLevelLinkCardSave()</code></td></tr><tr><td><code>PopupLevelLinkCardChange</code></td><td>카드 선택 확인 / 등록 카드 클릭</td><td>카드, 레벨, 해제 여부, 쿨타임</td><td><code>IsSuccess</code></td><td>등록 : 선택 팝업 성공 / 해제 : <code>RequestLevelLinkCardRemove()</code></td></tr><tr><td><code>PopupLevelLinkInstantcomplete</code></td><td>중앙 카드 클릭 (COOLTIME)</td><td>전체 / 남은 쿨타임, 타이머 키</td><td><code>IsSuccess</code></td><td><code>LevelLinkPageUpdate_CoolTime</code> 발행</td></tr><tr><td>공용 알림 (초기화 / 자동 배치 확인)</td><td>초기화 / 자동 배치 버튼</td><td>문구</td><td>확인 여부</td><td><code>RequestLevelLinkReset()</code> / 자동 배치 후 저장</td></tr></tbody></table></div>
+<p>덱 편집 팝업 내부:</p>
+<div class="diagram"><pre>PopupLevelLinkDeckManage
+├─ TitleUI  ObjLevelLinkDeck_TitleUI         닫기 / 도움말
+├─ TopUI    ObjLevelLinkDeck_TopUI           편집 중인 덱 + 레벨(기존 → 현재)
+│  └─ InfoUI ObjLevelLinkDeck_TopUI_Info     자동 배치 / 카드 관리 버튼
+└─ MidUI    ObjLevelLinkDeck_MidUI
+   ├─ SortUI       ObjLevelLinkDeck_MidUI_Sort          정렬 드롭다운 → CurrentDeckSortType
+   ├─ ScrollUI     ObjLevelLinkDeck_MidUI_Scroll        보유 카드 (5장씩 한 줄)
+   ├─ ButtonUI     ObjLevelLinkDeck_MidUI_Button        저장(모든 슬롯이 찼을 때) / 맨 위로
+   └─ SortFilterUI ObjLevelLinkDeck_MidUI_SortFilter    멤버 / 속성 필터</pre></div>
+<p>편집은 <code>setting.SlotList</code>(로컬 사본)에만 반영되고, 서버 저장은 페이지가 결과를 받아서 합니다.</p>
+</section>
+<section id="s-6"><h2><span class="num">6</span>데이터 모델</h2>
+<h3 id="s-6-1"><span class="num">6-1</span>테이블 (<code>CLevelLinkDataManager</code>)</h3>
+<div class="table-wrap"><table><thead><tr><th>클래스</th><th>한 행의 의미</th><th>주요 필드</th></tr></thead><tbody><tr><td><code>LevelLinkList</code></td><td>칸 하나의 설정</td><td>칸 ID, 표시 순서, 덱 그룹 인덱스, 쿨타임, 해금 미션 / 골드 / 재료</td></tr><tr><td><code>LevelLinkGroupList</code></td><td>덱 슬롯 하나</td><td>그룹 인덱스, 슬롯 번호(1~7), 멤버 조건 (<code>level_link_group_con</code>)</td></tr><tr><td><code>LevelLinkExtend</code></td><td>해금 재료 하나</td><td>타입, 아이템 ID, 필요 수량</td></tr></tbody></table></div>
+<h3 id="s-6-2"><span class="num">6-2</span>서버 (<code>LevelLinkManager</code>)</h3>
+<div class="table-wrap"><table><thead><tr><th>데이터</th><th>내용</th></tr></thead><tbody><tr><td><code>SLevelLinkList</code> (칸별 <code>LevelLinkList</code>)</td><td><code>state</code>(잠김 여부), <code>lv</code>(LevelLink 레벨), <code>slot</code>(등록 카드), <code>remain_time</code>(쿨타임), <code>card_1 ~ card_7</code>(덱)</td></tr><tr><td><code>SMissionList</code></td><td><code>[칸 ID][미션 ID]</code> → 진행도(<code>cur_point</code> / <code>end_point</code> / <code>state</code>)</td></tr><tr><td><code>CurrentPageGDID</code></td><td>지금 보고 있는 칸. setter가 <code>LevelLinkSelectGDID</code>를 발행한다</td></tr><tr><td><code>CurrentDeckSortType</code></td><td>덱 편집 정렬 인덱스 (<code>static ReactiveProperty&lt;int&gt;</code>)</td></tr><tr><td>필터 상태</td><td><code>SortFilter_Member</code>, <code>SortFilter_PZTYPE</code> (편집 중 선택 / 적용 선택)</td></tr><tr><td><code>ShortTimeList</code></td><td>쿨타임 단축 수단 목록</td></tr></tbody></table></div>
+<h3 id="s-6-3"><span class="num">6-3</span>덱 슬롯 표현</h3>
+<p>화면과 서버 사이에서 덱은 <code>Dictionary&lt;int, int&gt;</code>(슬롯 번호 → 카드 gdid, 0이면 빈 칸)로 오갑니다.<br><code>GetSlotGroupList()</code>가 서버의 <code>card_1 ~ card_7</code>을 테이블 슬롯 번호 기준으로 이 형태로 바꾸고, 저장할 때 서비스가 다시 7개 값으로 풉니다.</p>
+</section>
+<section id="s-7"><h2><span class="num">7</span>서버 API</h2>
+<p>모든 요청은 <code>LevelLinkService</code>에 있고, <code>LevelLinkManager</code>가 감싸서 호출합니다. 공통 동작은 다음과 같습니다.</p>
+<ul><li>Cold Observable이라 구독해야 요청이 나갑니다.</li><li>응답 코드(<code>e != 0</code>) 안내는 공통 처리가 맡으므로, <code>Do()</code>와 구독자는 성공 응답 처리에 집중합니다.</li><li><code>Do()</code>가 구독자보다 먼저 실행되므로, 구독 콜백 시점에는 매니저 데이터가 이미 갱신되어 있습니다.</li></ul>
+<div class="table-wrap"><table><thead><tr><th>API</th><th>매니저 메서드</th><th>응답 반영</th><th>성공 후</th></tr></thead><tbody><tr><td><code>level_link/top</code></td><td><code>ShowLevelLinkPage()</code> 내부</td><td>칸 목록 + 미션 진행도</td><td>페이지 생성</td></tr><tr><td><code>level_link/slot_add</code></td><td><code>RequestSlotAdd()</code></td><td>칸 목록(해금)</td><td><code>LevelLinkUnLockSlot</code> 발행 → 해금 연출</td></tr><tr><td><code>level_link/slot_buy</code></td><td><code>RequestItemBuy()</code> → <code>IObservable&lt;bool&gt;</code></td><td>아이템 / 상품 인벤토리</td><td>해금 팝업 갱신</td></tr><tr><td><code>level_link/deck_save</code></td><td><code>RequestLevelLinkDeckSave()</code></td><td>칸 목록(덱, lv)</td><td>토스트 + <code>LevelLinkSelectGDID</code></td></tr><tr><td><code>level_link/reset_all</code></td><td><code>RequestLevelLinkReset()</code></td><td>칸 목록</td><td>토스트 + <code>LevelLinkSelectGDID</code></td></tr><tr><td><code>level_link/slot_set</code></td><td><code>RequestLevelLinkCardSave()</code></td><td>칸 목록(slot) + 카드(<code>level_link_lv</code>)</td><td><code>LevelLinkSelectGDID</code></td></tr><tr><td><code>level_link/slot_unset_card</code></td><td><code>RequestLevelLinkCardRemove()</code></td><td>칸 목록(slot 해제, 쿨타임) + 카드(복원)</td><td><code>LevelLinkSelectGDID</code></td></tr><tr><td><code>level_link/reduce_time</code></td><td><code>ReqLevelLinkReduceTime()</code> → <code>IObservable&lt;bool&gt;</code></td><td>칸 목록(remain_time), 타이머 정리</td><td>팝업 성공 → <code>LevelLinkPageUpdate_CoolTime</code></td></tr></tbody></table></div>
+<p><code>reduce_time</code>의 <code>itemID</code>는 1이면 보석 즉시 완료, 티켓 ID면 단축 티켓, 0이면 광고(<code>adID</code> 사용)입니다.</p>
+</section>
+<section id="s-8"><h2><span class="num">8</span>이벤트와 데이터 갱신 흐름</h2>
+<h3 id="s-8-1"><span class="num">8-1</span>메시지 (<code>MessageBroker</code>)</h3>
+<div class="table-wrap"><table><thead><tr><th>메시지</th><th>발행</th><th>구독</th><th>처리</th></tr></thead><tbody><tr><td><code>LevelLinkSelectGDID</code></td><td><code>CurrentPageGDID</code> setter, 덱 저장 / 초기화 / 등록 / 해제 성공, 해금 연출 종료</td><td><code>PageLevelLink</code></td><td>매니저에서 값을 다시 읽어 Mid / Bottom / Lock 갱신</td></tr><tr><td><code>LevelLinkPageUpdate_CoolTime</code></td><td>쿨타임 종료(타이머), 단축 성공</td><td><code>PageLevelLink</code>, 단축 팝업</td><td>타이머 재설정 / 팝업 자동 닫기</td></tr><tr><td><code>LevelLinkUnLockSlot</code></td><td>해금 성공</td><td><code>PageLevelLink</code></td><td>잠금 UI를 해금 연출 모드로</td></tr><tr><td><code>RefreshCardData</code></td><td>카드 인벤토리 (외부)</td><td><code>PageLevelLink</code>, 덱 편집 팝업</td><td>카드 레벨 변화 반영</td></tr></tbody></table></div>
+<p>해금 팝업은 메시지 대신 <code>ReactiveProperty</code>를 직접 구독합니다. 보유 골드(<code>CPlayer.Gold</code>)가 바뀌면 해금 상태를 다시 계산하고, 상태(<code>CurrentState</code>)가 바뀌면 화면을 다시 그립니다. (<code>HudShopRrefresh</code> 구독 코드는 주석 처리되어 있습니다)</p>
+<h3 id="s-8-2"><span class="num">8-2</span>한 번의 갱신이 도는 순서 (예: 덱 저장)</h3>
+<div class="diagram"><pre>덱 편집 팝업 Close (Result: SlotList)
+ → PageLevelLink 구독 콜백 → LevelLinkManager.RequestLevelLinkDeckSave(slotList)
+   → LevelLinkService.ReqLevelLinkDeckSave()  ─ 서버 ─▶ 응답
+     → Do(): Manager.SetLevelLinkListData(), 로그
+   → 구독 콜백: 토스트, MessageBroker.Publish(LevelLinkSelectGDID)
+ → PageLevelLink.Receive: SetData(...) → MidUI.SetUI() / BottomUI.UpdateUI() / LockUI.SetUI()</pre></div>
+<p><strong>데이터는 위(페이지)에서 아래(하위 영역)로 Setting으로 내려가고, 사용자 입력은 콜백으로 위로 올라갑니다.</strong> 서버 결과는 메시지로 페이지에 알려지고, 페이지가 화면 전체를 다시 그립니다.</p>
+</section>
+<section id="s-9"><h2><span class="num">9</span>핵심 로직</h2>
+<h3 id="s-9-1"><span class="num">9-1</span>LevelLink 레벨</h3>
+<ul><li><code>GetLevelLinkSlotLV(slotInfo)</code> = 덱 카드 레벨의 최솟값입니다. 덱을 고르게 키울수록 LevelLink 레벨이 올라갑니다.</li><li><code>GetSlotMinCard()</code>는 레벨을 정하는 카드를 찾아 화면에 표시해, 다음에 키울 카드를 알려 줍니다.</li><li>덱 저장 전에 <code>IsChangeLevelLinkLowLV()</code>로 레벨 변화를 확인하고, 필요하면 확인 팝업으로 변경 전후 레벨을 보여 줍니다.</li></ul>
+<h3 id="s-9-2"><span class="num">9-2</span>카드 후보 규칙</h3>
+<div class="table-wrap"><table><thead><tr><th>목록</th><th>메서드</th><th>제외 조건</th><th>정렬</th></tr></thead><tbody><tr><td>덱 편집 카드</td><td><code>GetLevelLinkCardDeckList()</code></td><td><strong>다른 칸</strong> 덱 카드, <code>level_link_lv != 0</code> → 멤버 필터 → 속성 필터</td><td>선택한 정렬 전략</td></tr><tr><td>자동 배치 후보</td><td><code>GetLevelLinkCardDeckAutoList()</code></td><td>위와 같음 (현재 칸 덱 카드는 다시 후보)</td><td>레벨 → 전투력 → 등급 → gdid</td></tr><tr><td>중앙 슬롯 등록 후보</td><td><code>GetLevelLinkCardIDList()</code></td><td><strong>모든 칸</strong> 덱 카드(현재 칸 포함), <code>level_link_lv != 0</code></td><td>등급 → 레벨 → gdid</td></tr></tbody></table></div>
+<p>덱 카드와 육성 카드(등록 카드)를 서로 겹치지 않게 나눠, "성장한 카드로 덱을 꾸리고, 새 카드를 키운다"는 의도를 규칙으로 보장합니다.</p>
+<h3 id="s-9-3"><span class="num">9-3</span>자동 배치 (<code>GetLevelLinkCardDeckAutoList</code>)</h3>
+<div class="diagram"><pre>1) 후보 = 인벤토리 - 다른 칸 덱 카드 - LevelLink 적용 카드
+2) 후보 수 &lt; 슬롯 수 → 배치 불가로 반환
+3) 멤버 전용 슬롯 먼저 : 그 멤버 카드 중 우선순위 1등
+   - 맞는 카드가 없는 슬롯이 있으면 배치 불가로 반환
+4) 그룹 전체 슬롯 : 남은 후보를 우선순위대로 슬롯 수만큼
+결과 : Tuple&lt;bool 배치 가능, Dictionary&lt;슬롯, 카드&gt;&gt;</pre></div>
+<ul><li>제약이 강한 슬롯(멤버 전용)을 먼저 채워서, 멤버 전용 슬롯에 맞는 카드를 먼저 확보합니다.</li><li>호출하는 곳은 두 군데입니다. 페이지에서는 결과가 기존과 다르면 바로 저장하고, 덱 편집 팝업에서는 화면의 배치만 바꿉니다.</li></ul>
+<h3 id="s-9-4"><span class="num">9-4</span>정렬과 필터</h3>
+<ul><li>정렬은 Strategy 패턴입니다. <code>ICardSortStrategy</code> 구현(<code>CardSort_Level / Grade / Power / Name / Recent</code>)을 <code>LevelLinkDeckSort.List</code>에 순서대로 두면 그 순서가 드롭다운 순서가 됩니다. 공통 보조 정렬(<code>card_sort</code>)은 <code>CardSortStrategyBase</code>가 붙입니다(Template Method).</li><li>드롭다운 선택 → <code>CurrentDeckSortType.Value</code> 변경 → 덱 편집 팝업이 <code>DistinctUntilChanged().Skip(1)</code>로 구독하다가 목록을 다시 계산합니다.</li><li>필터는 "편집 중 선택"과 "적용 선택"을 따로 둡니다. 필터 패널의 확인은 <code>SaveSortInfo(true)</code>, 취소는 <code>SaveSortInfo(false)</code>입니다.</li></ul>
+<h3 id="s-9-5"><span class="num">9-5</span>쿨타임 타이머</h3>
+<ul><li><code>TimeStreamManager</code>의 타임스트림을 키 <code>LEVELLINK_SLOT_{칸 ID}</code>로 공유합니다. 중앙 타이머, 하단 슬롯 타이머, 단축 팝업 타이머가 같은 스트림을 구독합니다.</li><li>타이머가 끝나면 서버를 다시 부르지 않고 <code>UpdateLevelLinkListData_RemainTime_TimeKey()</code>로 로컬 <code>remain_time</code>을 0으로 맞추고, <code>LevelLinkPageUpdate_CoolTime</code>을 발행합니다.</li></ul>
+<h3 id="s-9-6"><span class="num">9-6</span>쿨타임 단축 수단</h3>
+<p><code>InitShortTimeList()</code>가 아래 순서로 목록을 만들고, 지금 쓸 수 있는 수단만 보여 줍니다.</p>
+<div class="table-wrap"><table><thead><tr><th>순서</th><th>수단</th><th>목록에 들어가는 조건</th><th>비용</th></tr></thead><tbody><tr><td>1</td><td>광고</td><td>광고 사용 가능 + 남은 시청 횟수 &gt; 0</td><td>광고 1회</td></tr><tr><td>2</td><td>보석 즉시 완료</td><td>게임 설정 <code>levellink_cash_shorten_payment</code> 존재</td><td>남은 초 ÷ 설정값(올림), 실시간 갱신</td></tr><tr><td>3~5</td><td>단축 티켓 3종</td><td>설정된 티켓 아이템을 1개 이상 보유</td><td>티켓 1장</td></tr></tbody></table></div>
+<h3 id="s-9-7"><span class="num">9-7</span>보석 사용 흐름 (<code>OpenPopupUseCash</code>)</h3>
+<div class="diagram"><pre>보석 충분 → 사용 확인 팝업 → IsOK
+보석 부족 → "구매하러 가시겠습니까?" → 확인 → 보석 상점 → 닫힘 → IsOK = false (돌아와서 다시 진행)
+                                    → 취소 → IsOK = false</pre></div>
+<p>팝업 결과를 <code>SelectMany</code>로 이어 붙인 Rx 체인이며, 해금 재료 구매와 쿨타임 즉시 완료가 함께 씁니다.</p>
+</section>
+<section id="s-10"><h2><span class="num">10</span>설계 패턴 분석</h2>
+<h3 id="s-10-1"><span class="num">10-1</span>구조 : MVP(Passive View)에 가까운 혼합형</h3>
+<div class="table-wrap"><table><thead><tr><th>역할</th><th>클래스</th><th>근거</th></tr></thead><tbody><tr><td>Model</td><td><code>LevelLinkManager</code>, <code>CLevelLinkDataManager</code>, <code>LevelLinkService</code></td><td>상태, 규칙, 통신</td></tr><tr><td>Presenter 역할</td><td><code>PageLevelLink</code>, 각 <code>Popup*</code></td><td>매니저 값을 읽어 Setting을 만들고, 클릭을 받아 매니저와 팝업을 호출</td></tr><tr><td>View</td><td><code>BaseUILayout</code> 하위 클래스들</td><td>Setting으로 그리기만 하고, 입력은 콜백으로 위에 보고</td></tr><tr><td>화면용 데이터</td><td>각 <code>Setting</code></td><td>값 + 콜백 묶음. ViewModel과 비슷하지만 바인딩은 없음</td></tr></tbody></table></div>
+<p>구조의 특징:</p>
+<ol class="points"><li><strong>페이지가 View와 Presenter 역할을 함께 맡습니다.</strong> <code>PageLevelLink</code> 한 파일에서 화면 구성과 사용자 흐름을 함께 볼 수 있습니다.</li><li><strong>하위 영역이 필요한 값을 매니저에서 바로 읽습니다.</strong> 예: 필터 패널, 중앙 상단, 타이머. Setting을 여러 단계 거쳐 전달하지 않아도 됩니다.</li><li><strong>매니저가 공통 UI 처리를 함께 맡습니다.</strong> 토스트, 페이지 로드, 보석 팝업을 매니저가 열어 호출하는 쪽 코드가 짧습니다.</li><li><strong>싱글톤으로 상태를 공유합니다.</strong> <code>LevelLinkManager.Instance</code>, <code>CurrentDeckSortType</code>으로 어느 화면에서든 같은 상태를 봅니다.</li></ol>
+<p><code>ReactiveProperty</code>는 세 곳(덱 편집의 <code>CurrentDeckSortType</code>, 해금 팝업의 <code>CPlayer.Gold</code>와 <code>CurrentState</code>)에서 구독하며, 값이 바뀌면 화면 갱신 메서드를 다시 호출합니다.</p>
+<h3 id="s-10-2"><span class="num">10-2</span>함께 쓰인 패턴</h3>
+<div class="table-wrap"><table><thead><tr><th>패턴</th><th>위치</th></tr></thead><tbody><tr><td>Composite (계층 UI)</td><td>페이지 → 영역 → 하위 영역, 공통 수명주기 <code>InitUI / SetData / SetUI</code></td></tr><tr><td>Observer / Event Aggregator</td><td><code>MessageBroker</code> 메시지 4종 (LevelLink 전용 3종 + 카드 갱신)</td></tr><tr><td>요청과 응답 형태의 팝업</td><td><code>CPopupUI&lt;Setting, Result&gt;</code> + <code>ShowAsObservable()</code></td></tr><tr><td>Strategy + Template Method</td><td><code>ICardSortStrategy</code>, <code>CardSortStrategyBase</code></td></tr><tr><td>Registry</td><td><code>LevelLinkDeckSort.List</code> (목록 순서 = 드롭다운 순서)</td></tr><tr><td>Singleton</td><td>매니저 3종</td></tr><tr><td>Object Pool (재사용 스크롤)</td><td><code>LoopListView2</code> : 하단 슬롯, 덱 카드, 카드 선택, 단축 수단</td></tr></tbody></table></div>
+<h3 id="s-10-3"><span class="num">10-3</span>장점</h3>
+<ul><li>화면 구조가 프리팹 계층과 그대로 맞아, 화면에서 코드를 찾기 쉽습니다.</li><li>하위 영역이 부모를 몰라 재사용하기 쉽습니다. (<code>ObjLevelLinkCard</code>, 쿨타임 타이머는 여러 화면에서 함께 씀)</li><li>팝업이 결과 1개를 내는 함수처럼 동작해, 여러 팝업을 거치는 흐름을 Rx로 이어 붙이기 쉽습니다.</li><li>서버 결과를 메시지 하나로 모아, 화면 갱신 경로가 한 곳으로 정리됩니다.</li><li>매니저 하나에 LevelLink의 상태와 규칙이 모여 있어, 기능 전체를 한 곳에서 파악할 수 있습니다.</li></ul>
+</section>
+<section id="s-11"><h2><span class="num">11</span>파일 목록</h2>
+<div class="table-wrap"><table><thead><tr><th>폴더</th><th>파일</th><th>역할</th></tr></thead><tbody><tr><td><code>Common</code></td><td><code>CLevelLinkDataManager.cs</code></td><td>테이블 데이터 (칸 / 덱 구성 / 해금 재료)</td></tr><tr><td><code>Common/GameLog</code></td><td><code>GameLogService.LevelLink.cs</code></td><td>행동 로그</td></tr><tr><td><code>Network/Service</code></td><td><code>LevelLinkService.cs</code></td><td>서버 API 8종</td></tr><tr><td><code>Process/Common/SortFilter</code></td><td><code>CardSortStrategy.cs</code></td><td>정렬 전략 인터페이스와 구현 5종</td></tr><tr><td><code>Process/Common/UI</code></td><td><code>BaseUILayout.cs</code></td><td>하위 영역 기반 클래스</td></tr><tr><td></td><td><code>CPopupUI.cs</code></td><td>팝업 / 페이지 기반 클래스 (<code>BasePopup</code>, <code>CPopupUI</code>, <code>PagePopup</code>)</td></tr><tr><td><code>Process/LevelLink</code></td><td><code>LevelLinkManager.cs</code></td><td>핵심 매니저, 상태 enum, 메시지 struct</td></tr><tr><td></td><td><code>LevelLinkDeckSort.cs</code></td><td>정렬 목록 (Registry)</td></tr><tr><td><code>Process/LevelLink/UI</code></td><td><code>ObjLevelLinkCard.cs</code>, <code>ObjLevelLinkCardMemberName.cs</code></td><td>카드 1장, 멤버 조건 라벨</td></tr><tr><td></td><td><code>ObjLevelLinkSelectCardList.cs</code></td><td>덱 카드 한 줄</td></tr><tr><td></td><td><code>ObjLevelLinkSlot.cs</code>, <code>ObjLevelLinkSlot_Timer.cs</code></td><td>하단 칸 아이템, 쿨타임 타이머 (3곳 공용)</td></tr><tr><td><code>.../UI/page</code></td><td><code>PageLevelLink.cs</code>, <code>PageLevelLink.popup.cs</code></td><td>메인 페이지, 팝업 열기 모음</td></tr><tr><td></td><td><code>PageLevelLink_Top / _Mid / _Mid_TopUI / _Mid_MidUI / _Mid_BottomUI / _Bottom / _Lock.cs</code></td><td>페이지 하위 영역</td></tr><tr><td><code>.../popup/popup_level_link_unlock</code></td><td><code>PopupLevelLinkUnlock.cs</code> 외 3개</td><td>해금 (미션 목록, 재료 목록)</td></tr><tr><td><code>.../popup/popup_level_link_buy</code></td><td><code>PopupLevelLinkBuy.cs</code></td><td>해금 재료 구매</td></tr><tr><td><code>.../popup/popup_level_link_deck_manage</code></td><td><code>PopupLevelLinkDeckManage.cs</code> 외 9개</td><td>덱 편집 (정렬, 필터, 스크롤, 버튼)</td></tr><tr><td><code>.../popup/popup_level_link_decksave</code></td><td><code>PopupLevelLinkDecksave.cs</code></td><td>레벨 변경 확인</td></tr><tr><td><code>.../popup/popup_level_link_selectcard</code></td><td><code>PopupLevelLinkSelectcard.cs</code>, <code>ObjLevelLinkSelectCardListGroup.cs</code></td><td>등록 카드 선택</td></tr><tr><td><code>.../popup/popup_level_link_cardchange</code></td><td><code>PopupLevelLinkCardChange.cs</code> 외 3개</td><td>등록 / 해제 확인 (레벨 변화 미리보기)</td></tr><tr><td><code>.../popup/popup_level_link_instantcomplete</code></td><td><code>PopupLevelLinkInstantcomplete.cs</code> 외 6개</td><td>쿨타임 단축 (광고 / 보석 / 티켓)</td></tr></tbody></table></div>
+</section>
+  </main>
+</div>
+<button class="menu-btn" id="menuBtn" type="button">목차</button>
+<script>
+(function(){
+  var root=document.documentElement;
+  try{var t=localStorage.getItem('ll-theme');if(t)root.setAttribute('data-theme',t);}catch(e){}
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    var next=cur==='dark'?'light':'dark';root.setAttribute('data-theme',next);
+    try{localStorage.setItem('ll-theme',next);}catch(e){}
+  });
+  document.getElementById('menuBtn').addEventListener('click',function(){document.body.classList.toggle('nav-open');});
+  var links=[].slice.call(document.querySelectorAll('#nav a'));
+  links.forEach(function(a){a.addEventListener('click',function(){document.body.classList.remove('nav-open');});});
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var targets=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function onScroll(){
+    var cur=null;for(var i=0;i<targets.length;i++){if(targets[i].getBoundingClientRect().top<120)cur=targets[i];}
+    links.forEach(function(a){a.classList.remove('active');});
+    if(cur&&map[cur.id]){map[cur.id].classList.add('active');}
+  }
+  addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+</script>
+</body>
+</html>
